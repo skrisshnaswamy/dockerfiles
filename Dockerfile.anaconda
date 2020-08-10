@@ -1,0 +1,47 @@
+FROM python:3.8.3
+
+#  $ docker build . -t continuumio/anaconda3:latest -t continuumio/anaconda3:5.3.0
+#  $ docker run --rm -it continuumio/anaconda3:latest /bin/bash
+#  $ docker push continuumio/anaconda3:latest
+#  $ docker push continuumio/anaconda3:5.3.0
+
+# > cat /etc/*-release
+# PRETTY_NAME="Debian GNU/Linux 10 (buster)"
+# NAME="Debian GNU/Linux"
+# VERSION_ID="10"
+# VERSION="10 (buster)"
+# VERSION_CODENAME=buster
+# ID=debian
+# HOME_URL="https://www.debian.org/"
+# SUPPORT_URL="https://www.debian.org/support"
+# BUG_REPORT_URL="https://bugs.debian.org/"
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+ENV PATH=/opt/conda/bin:$PATH
+
+RUN apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates \
+    libglib2.0-0 libxext6 libsm6 libxrender1 \
+    libgl1-mesa-glx libegl1-mesa libxrandr2 libxrandr2 libxss1 libxcursor1 libxcomposite1 libasound2 libxi6 libxtst6 \
+    git mercurial subversion
+
+RUN wget --quiet https://repo.anaconda.com/archive/Anaconda3-2020.07-Linux-x86_64.sh -O ~/anaconda.sh && \
+    /bin/bash ~/anaconda.sh -b -p /opt/conda && \
+    rm ~/anaconda.sh && \
+    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
+    echo "conda activate base" >> ~/.bashrc
+
+RUN apt-get install -y curl grep sed dpkg && \
+    TINI_VERSION=`curl https://github.com/krallin/tini/releases/latest | grep -o "/v.*\"" | sed 's:^..\(.*\).$:\1:'` && \
+    curl -L "https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini_${TINI_VERSION}.deb" > tini.deb && \
+    dpkg -i tini.deb && \
+    rm tini.deb && \
+    apt-get clean
+
+# Install Jupyter Notebooks
+WORKDIR /opt/conda/bin
+RUN conda install -c conda-forge jupyterlab -y --quiet
+RUN if [ ! -d "/opt" ]; then  echo "Folder Doesn't exist!\nCreating folder..."; mkdir /opt/notebooks; fi
+
+#CMD [ "/bin/bash -c jupyter notebook --notebook-dir=/opt/notebooks --ip='*' --port=8888 --no-browser --allow-root" ]
+CMD ["/bin/bash"]
